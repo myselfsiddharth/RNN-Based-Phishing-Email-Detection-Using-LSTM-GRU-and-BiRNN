@@ -1,0 +1,53 @@
+# Project-wide .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ML Models
+*.pth
+*.pt
+*.h5
+*.pkl
+
+# Datasets (large files)
+datasets/train/
+datasets/val/
+datasets/test/
+*.csv
+*.json
+!package.json
+
+# Build
+build/
+dist/
+

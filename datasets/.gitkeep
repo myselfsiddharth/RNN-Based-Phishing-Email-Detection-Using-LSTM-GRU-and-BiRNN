@@ -1,0 +1,14 @@
+# This directory will contain training datasets
+# 
+# Expected structure:
+# datasets/
+# ├── train/
+# │   ├── phishing_urls.csv
+# │   └── legitimate_urls.csv
+# ├── val/
+# │   ├── phishing_urls.csv
+# │   └── legitimate_urls.csv
+# └── test/
+#     ├── phishing_urls.csv
+#     └── legitimate_urls.csv
+
