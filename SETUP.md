@@ -1,276 +1,220 @@
-# Quick Setup Guide
+# Setup Guide: RNN-Based Phishing Email Detection
 
-This guide will help you get the phishing detection system up and running quickly.
+This guide configures the project for experimentation with phishing email detection using `Simple RNN`, `LSTM`, `GRU`, and `Bidirectional RNN` models.
 
 ## Prerequisites
 
-- Node.js (v16 or higher)
-- Python (3.9 or higher)
-- npm or yarn
+- Python 3.9+
 - pip
+- Node.js 16+ and npm (optional, for UI)
+- Git
 
-## Quick Start
+## 1) Environment Setup (Backend + ML)
 
-### 1. Install Frontend Dependencies
+```bash
+cd backend
+python -m venv venv
+```
+
+Activate virtual environment:
+
+- Windows (PowerShell):
+```powershell
+venv\Scripts\Activate.ps1
+```
+
+- macOS/Linux:
+```bash
+source venv/bin/activate
+```
+
+Install backend dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Install ML/training dependencies:
+
+```bash
+pip install -r ../ml/requirements.txt
+```
+
+## 2) Optional Frontend Setup
 
 ```bash
 cd frontend
 npm install
 ```
 
-### 2. Install Backend Dependencies
+## 3) Datasets
+
+Labeled CSVs live in `datasets/`. This repo includes:
+
+| File | Notes |
+|------|--------|
+| `CEAS_08.csv` | Large; has `body`, `label`, plus metadata (`sender`, `subject`, …). |
+| `Enron.csv` | `subject`, `body`, `label` — subject and body are merged automatically for training. |
+| `phishing_email.csv` | `text_combined`, `label` (pre-merged text). |
+| `Ling.csv`, `Nazario.csv`, `Nigerian_Fraud.csv`, `SpamAssasin.csv` | Mix of `body` + `label` and metadata columns; `body` is used when present. |
+
+**Required:** a `label` column (`0` = legitimate, `1` = phishing). **Text:** one of `text_combined`, `text`, `email_text`, `body`, `content`, `message`, **or** both `subject` and `body` (combined into one input).
+
+## 4) Start API (Optional Integration Testing)
+
+After full training, artifacts are expected under `ml/saved_models_full/` (baselines + `simple_rnn`, `lstm`, `gru`, `birnn`). The backend loads them by default.
+
+To use a different folder, set (PowerShell):
+
+```powershell
+$env:PHISHING_BASELINE_DIR="C:/path/to/ml/saved_models_full/baselines"
+$env:PHISHING_DEEP_DIR="C:/path/to/ml/saved_models_full"
+```
 
 ```bash
 cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 3. Run the Backend
-
-```bash
-# From backend directory with venv activated
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-You should see:
-```
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process
+Expected startup output includes:
+
+```text
+Uvicorn running on http://127.0.0.1:8000
 ```
 
-### 4. Run the Frontend
+## 5) Start Frontend (Optional)
 
-Open a NEW terminal window:
+In a new terminal:
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-You should see:
+Default UI URL:
+
+- `http://127.0.0.1:5173` (or `http://localhost:5173`)
+
+If the page won’t load, run from `frontend/`: `npm install` then `npm run dev` (script binds to `127.0.0.1:5173`).
+
+### “Failed to fetch” in the browser
+
+1. **Backend must be running** on port 8000: open `http://127.0.0.1:8000/health` — you should see `{"status":"healthy"}`.
+2. **CORS:** open the UI with the same host style as allowed by the API (the backend allows both `localhost` and `127.0.0.1` on ports 5173/5174).
+3. If it still fails, in `frontend/` copy `.env.example` to `.env` and set `VITE_API_URL` to match how you reach the API (e.g. `http://127.0.0.1:8000`), then restart `npm run dev`.
+
+## 6) Modeling Workflow
+
+Quick training commands:
+
+```bash
+cd ml
+
+# Baselines on a small sanity-check file
+python train.py --model baselines --data ../datasets/sample_emails.csv --output ./saved_models
+
+# Baselines on a full project dataset (examples)
+python train.py --model baselines --data ../datasets/phishing_email.csv --output ./saved_models
+python train.py --model baselines --data ../datasets/Enron.csv --output ./saved_models
+
+# Deep model (requires TensorFlow; large CSVs need time and RAM)
+python train.py --model lstm --data ../datasets/phishing_email.csv --epochs 3 --output ./saved_models
+
+# CEAS_08 is very large — start with fewer epochs / smaller batch size if needed
+python train.py --model baselines --data ../datasets/CEAS_08.csv --output ./saved_models
+
+# Quick stratified subsample (faster smoke test; not full-data evaluation)
+python train.py --model baselines --data ../datasets/phishing_email.csv --max-rows 5000 --output ./saved_models_quick
 ```
-VITE v5.x.x  ready in xxx ms
 
-➜  Local:   http://localhost:5173/
-➜  Network: use --host to expose
+For datasets with **≥ ~30k** training rows, baseline mode automatically uses lighter RF/MLP settings so runs finish in reasonable time.
+
+Use this sequence for larger experiments:
+
+1. Clean and normalize text (lowercase, remove noise, normalize whitespace)
+2. Tokenize text with Keras `Tokenizer`
+3. Convert to sequences and apply `pad_sequences`
+4. Train recurrent models:
+   - Simple RNN
+   - LSTM
+   - GRU
+   - Bidirectional RNN
+5. Train baseline ML models with TF-IDF:
+   - Naive Bayes
+   - Logistic Regression
+   - SGD
+   - Random Forest
+   - MLP
+6. Evaluate with:
+   - Accuracy
+   - Precision
+   - Recall
+   - F1-score
+   - Confusion matrix
+   - False-positive rate
+
+### Test saved ML model (CLI)
+
+After training, run predictions against exported artifacts (`baselines/*.joblib` or deep `model.keras`):
+
+```bash
+cd ml
+
+# TF-IDF + sklearn baseline (default: logistic_regression)
+python predict.py --baseline-dir ./saved_models/baselines --text "Verify your account now at http://phish.example.com"
+
+# Deep model (requires TensorFlow)
+python predict.py --deep-dir ./saved_models/lstm --text "Urgent wire transfer needed"
 ```
 
-### 5. Access the Application
+Re-train baselines once if `vectorizer.joblib` is missing (older runs only saved `metrics.json`).
 
-Open your browser and go to:
-- **Frontend**: http://localhost:5173 (or http://localhost:3000)
-- **Backend API Docs**: http://localhost:8000/docs
+## 7) API Smoke Test
+
+If `/detect` is active in backend, test with:
+
+```bash
+curl -X POST "http://localhost:8000/detect" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email_text": "Your mailbox storage is full. Verify your account now.",
+    "sender": "support-security@alerts-mail.com"
+  }'
+```
+
+Current request fields are `email_text`, `sender`, and `subject`.
 
 ## Troubleshooting
 
-### Port Already in Use
+### Port in Use
 
-If port 8000 or 5173 is already in use:
-
-**Backend:**
+- Backend alternate port:
 ```bash
 python -m uvicorn app.main:app --reload --port 8001
 ```
 
-**Frontend (edit `vite.config.js`):**
-```javascript
-server: {
-  port: 3001,
-  // ...
-}
-```
+### Virtual Env Activation Fails (Windows)
 
-### Module Not Found Errors
-
-**Backend:**
-```bash
-cd backend
-pip install -r requirements.txt --upgrade
-```
-
-**Frontend:**
-```bash
-cd frontend
-rm -rf node_modules
-npm install
-```
-
-### CORS Errors
-
-If you see CORS errors, make sure:
-1. Backend is running on port 8000
-2. Frontend is accessing the correct backend URL
-3. Check `backend/app/main.py` CORS settings
-
-### Virtual Environment Issues
-
-**Windows:**
-```bash
-# If activation fails, try:
+```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-**macOS/Linux:**
-```bash
-# Make sure you're in the backend directory
-cd backend
-source venv/bin/activate
-```
-
-## Testing the Application
-
-1. Open the frontend in your browser
-2. Enter a sample URL: `http://suspicious-site.com`
-3. Click "Analyze Post"
-4. You should see a mock detection result
-
-**Note:** Current implementation returns mock/random results since ML models are not yet implemented.
-
-## API Testing with curl
+### Missing Dependencies
 
 ```bash
-# Test the detection endpoint
-curl -X POST "http://localhost:8000/detect" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "post_text": "Check out this deal!",
-    "url": "http://example.com"
-  }'
+pip install -r requirements.txt --upgrade
 ```
 
-## API Testing with Postman
-
-1. Create a new POST request
-2. URL: `http://localhost:8000/detect`
-3. Headers: `Content-Type: application/json`
-4. Body (raw JSON):
-```json
-{
-  "post_text": "Check out this amazing offer!",
-  "url": "http://test-phishing.com"
-}
-```
-5. Click Send
-
-## Next Steps
-
-### For Development
-
-1. **Modify Frontend Components**: Edit files in `frontend/src/components/`
-2. **Modify Backend Logic**: Edit files in `backend/app/`
-3. **Add ML Models**: Implement models in `ml/models/`
-
-### For Research
-
-1. **Collect Datasets**: Add phishing/legitimate URLs to `datasets/`
-2. **Implement ML Models**: Complete the placeholder models
-3. **Train Models**: Use `ml/train.py` script
-4. **Integrate Models**: Connect trained models to backend
-
-## Development Workflow
-
-### Frontend Changes
-
-1. Make changes to React components
-2. Vite will auto-reload the browser
-3. Check console for errors
-
-### Backend Changes
-
-1. Make changes to Python files
-2. Uvicorn will auto-reload with `--reload` flag
-3. Check terminal for errors
-
-### Full Stack Testing
-
-1. Ensure both frontend and backend are running
-2. Test API endpoints via frontend UI
-3. Check browser console and network tab
-4. Check backend terminal for request logs
-
-## Project Structure Quick Reference
-
-```
-Frontend: frontend/src/
-  - components/  → React components
-  - pages/       → Page components
-  - services/    → API calls
-  - styles.css   → Global styles
-
-Backend: backend/app/
-  - main.py      → Application entry
-  - routes/      → API endpoints
-  - services/    → Business logic
-  - models/      → Data models
-
-ML: ml/
-  - models/      → Model architectures
-  - preprocessing/ → Data processing
-  - train.py     → Training script
-```
-
-## Common Commands
+### Frontend Dependency Issues
 
 ```bash
-# Frontend
 cd frontend
-npm install          # Install dependencies
-npm run dev          # Start dev server
-npm run build        # Build for production
-
-# Backend
-cd backend
-pip install -r requirements.txt  # Install dependencies
-python -m uvicorn app.main:app --reload  # Start dev server
-python -m pytest     # Run tests (when implemented)
-
-# ML
-cd ml
-python train.py --model cnn  # Train CNN model (when implemented)
+npm install
 ```
 
-## Environment Variables
+## Current Limitations
 
-### Backend (optional)
-
-Create `backend/.env`:
-```env
-HOST=0.0.0.0
-PORT=8000
-DEBUG=True
-```
-
-### Frontend (optional)
-
-Create `frontend/.env`:
-```env
-VITE_API_URL=http://localhost:8000
-```
-
-## Getting Help
-
-- Check `README.md` for comprehensive documentation
-- Check `docs/architecture.md` for system design
-- Check code comments for implementation details
-- Look for `TODO` comments for areas needing implementation
-
-## Ready to Start!
-
-You're all set! The system should now be running with:
-- ✅ Frontend UI accessible in browser
-- ✅ Backend API running and responding
-- ✅ Mock detection working
-
-**Remember:** This is a research prototype scaffold. The ML models need to be implemented for real phishing detection.
+1. Backend inference uses a trained TF-IDF + sklearn baseline when artifacts are available (otherwise falls back to deterministic heuristics).
+2. Trained deep models are saved, but not yet wired into runtime API inference.
+3. `datasets/sample_emails.csv` is a tiny sanity-check dataset; use files like `phishing_email.csv` or `CEAS_08.csv` for meaningful evaluation.
 

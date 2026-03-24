@@ -43,9 +43,10 @@ Thumbs.db
 datasets/train/
 datasets/val/
 datasets/test/
-*.csv
-*.json
-!package.json
+datasets/*.csv
+!datasets/sample_emails.csv
+ml/saved_models/
+ml/saved_models*/
 
 # Build
 build/

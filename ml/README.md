@@ -1,104 +1,89 @@
-# Machine Learning Models
+# Machine Learning Module
 
-This directory contains placeholder implementations for deep learning models used in phishing detection.
+This directory contains the phishing email model training pipeline.
 
-## Models
+## Implemented Models
 
-### 1. CNN Model (`models/cnn_model.py`)
-- Convolutional Neural Network for pattern detection
-- Designed to capture local patterns in URLs and text
-- **Status**: Placeholder - Implementation pending
+### Deep Learning
+- `simple_rnn`
+- `lstm`
+- `gru`
+- `birnn` (Bidirectional SimpleRNN)
 
-### 2. LSTM Model (`models/lstm_model.py`)
-- Long Short-Term Memory network for sequential analysis
-- Captures sequential patterns and dependencies
-- Includes attention mechanism
-- **Status**: Placeholder - Implementation pending
-
-### 3. Transformer Model (`models/transformer_model.py`)
-- Transformer-based model for contextual understanding
-- Self-attention mechanism for long-range dependencies
-- Option to use pre-trained BERT/RoBERTa
-- **Status**: Placeholder - Implementation pending
-
-## Preprocessing
-
-### Text Processing (`preprocessing/text_processing.py`)
-- URL feature extraction
-- Text tokenization
-- Feature engineering
-- **Status**: Placeholder - Implementation pending
-
-## Training
-
-### Training Script (`train.py`)
-```bash
-# Train CNN model
-python train.py --model cnn --data ./datasets --epochs 10
-
-# Train LSTM model
-python train.py --model lstm --data ./datasets --epochs 10
-
-# Train Transformer model
-python train.py --model transformer --data ./datasets --epochs 10
-
-# Train all models
-python train.py --model all --data ./datasets --epochs 10
-```
-
-**Status**: Placeholder - Implementation pending
-
-## TODO
-
-- [ ] Implement CNN architecture
-- [ ] Implement LSTM architecture with attention
-- [ ] Implement Transformer architecture
-- [ ] Implement preprocessing pipeline
-- [ ] Add data loading and batching
-- [ ] Implement training loops
-- [ ] Add evaluation metrics
-- [ ] Add model checkpointing
-- [ ] Add experiment tracking (TensorBoard)
-- [ ] Implement ensemble methods
-- [ ] Add model explainability (SHAP, attention visualization)
-- [ ] Fine-tune pre-trained models (BERT, RoBERTa)
+### Baselines (TF-IDF)
+- `naive_bayes`
+- `logistic_regression`
+- `sgd`
+- `random_forest`
+- `mlp`
 
 ## Dataset Requirements
 
-The models expect datasets in the following format:
+Training expects a CSV with:
 
+- **`label`**: `0` (legitimate) or `1` (phishing). String aliases like `ham` / `spam` are mapped when possible.
+- **Text** (first match wins):
+  - Single column: `text_combined`, `text`, `email_text`, `body`, `content`, or `message`
+  - **Or** both **`subject`** and **`body`**: they are concatenated (e.g. `Enron.csv`)
+
+Included project files (under `../datasets/`): `CEAS_08.csv`, `Enron.csv`, `phishing_email.csv`, `Ling.csv`, `Nazario.csv`, `Nigerian_Fraud.csv`, `SpamAssasin.csv`, plus `sample_emails.csv` for quick tests.
+
+**Note:** `CEAS_08.csv` is very large; baseline training may take significant time and memory.
+
+For large CSVs, `train.py` automatically uses lighter Random Forest / MLP settings when training rows ≥ 30k. Use `--max-rows 10000` for a faster stratified subsample (quick tests only).
+
+## Install
+
+```bash
+pip install -r requirements.txt
 ```
-datasets/
-├── train/
-│   ├── phishing_urls.csv
-│   └── legitimate_urls.csv
-├── val/
-│   ├── phishing_urls.csv
-│   └── legitimate_urls.csv
-└── test/
-    ├── phishing_urls.csv
-    └── legitimate_urls.csv
+
+## Training Commands
+
+```bash
+# Baselines only (does not require TensorFlow)
+python train.py --model baselines --data ../datasets/sample_emails.csv --output ./saved_models
+
+# Full datasets (examples)
+python train.py --model baselines --data ../datasets/phishing_email.csv --output ./saved_models
+python train.py --model baselines --data ../datasets/Enron.csv --output ./saved_models
+
+# One deep model (requires TensorFlow)
+python train.py --model lstm --data ../datasets/phishing_email.csv --epochs 3 --output ./saved_models
+
+# Train all deep models + baselines (long run on large CSVs)
+python train.py --model all --data ../datasets/phishing_email.csv --epochs 3 --output ./saved_models
 ```
 
-Each CSV should contain:
-- `url`: The URL string
-- `text`: Optional social media post context
-- `label`: 0 (legitimate) or 1 (phishing)
+## Outputs
 
-## Model Outputs
+Saved under `--output` (default: `./saved_models`):
+- `<model_name>/model.keras` (deep models)
+- `<model_name>/tokenizer.json` (deep models)
+- `<model_name>/meta.json` (deep models: `max_len`, architecture name)
+- `<model_name>/metrics.json`
+- `baselines/vectorizer.joblib` + `baselines/<classifier>.joblib` + `baselines/manifest.json`
+- `baselines/metrics.json`
+- `training_summary.json`
 
-Models should output:
-- **Prediction**: Phishing or Legitimate
-- **Confidence**: Probability score (0-1)
-- **Explanation**: Human-readable explanation
-- **Attention Weights**: For visualization (LSTM, Transformer)
+## Test inference (after training)
 
-## Next Steps
+Baseline (no TensorFlow needed):
+```bash
+cd ml
+python predict.py --baseline-dir ./saved_models/baselines --text "Verify your account now at http://evil.com"
+# Optional: --classifier naive_bayes | sgd | random_forest | mlp
+```
 
-1. Collect and prepare training datasets
-2. Implement model architectures
-3. Implement preprocessing pipeline
-4. Train and evaluate models
-5. Deploy best-performing model
-6. Add explainability features
+Deep model (requires TensorFlow):
+```bash
+python predict.py --deep-dir ./saved_models/lstm --text "Urgent: wire transfer required"
+```
+
+If you trained **before** `vectorizer.joblib` existed, run `train.py --model baselines` once more so the `baselines/` folder includes joblib artifacts.
+
+## Notes
+
+- Deep model training and deep inference require TensorFlow.
+- Backend API inference is currently heuristic-based and does not yet load trained artifacts.
 

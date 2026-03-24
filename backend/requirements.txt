@@ -15,9 +15,10 @@ python-jose[cryptography]==3.3.0
 # torch==2.1.2
 # torchvision==0.16.2
 # transformers==4.36.2
-# scikit-learn==1.4.0
-# pandas==2.1.4
-# numpy==1.26.3
+# sklearn inference (TF-IDF + joblib artifacts)
+scikit-learn
+joblib
+numpy
 
 # NLP Processing (Placeholder)
 # TODO: Uncomment when implementing text processing

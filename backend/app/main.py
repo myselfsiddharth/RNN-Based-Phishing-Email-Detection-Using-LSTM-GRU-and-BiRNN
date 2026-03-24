@@ -1,10 +1,4 @@
-"""
-FastAPI backend for Phishing Detection System
-CSE543 - Cybersecurity Research Project
-
-This is a placeholder backend implementation.
-TODO: Integrate real ML models for phishing detection
-"""
+"""FastAPI backend for phishing email detection research."""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,15 +6,24 @@ from app.routes import detect
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Phishing Detection API",
-    description="Deep Learning-based Detection of Phishing and Malware Links",
+    title="Phishing Email Detection API",
+    description="RNN-based phishing email detection with LSTM, GRU, and BiRNN evaluation",
     version="0.1.0"
 )
 
-# Configure CORS
+# Configure CORS (browser sends Origin matching the page URL — localhost vs 127.0.0.1 are different)
+_DEV_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # Frontend URLs
+    allow_origins=_DEV_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,10 +39,10 @@ async def root():
     Root endpoint - API health check
     """
     return {
-        "message": "Phishing Detection API",
+        "message": "Phishing Email Detection API",
         "status": "running",
         "version": "0.1.0",
-        "note": "This is a research prototype with placeholder ML models"
+        "note": "Research prototype with heuristic fallback and planned RNN-family model inference"
     }
 
 

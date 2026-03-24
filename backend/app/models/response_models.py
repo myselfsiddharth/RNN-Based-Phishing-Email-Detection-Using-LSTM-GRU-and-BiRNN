@@ -1,54 +1,64 @@
-"""
-Pydantic response models for API endpoints
-"""
+"""Pydantic API models for phishing email detection."""
 
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class DetectionResponse(BaseModel):
-    """
-    Response model for phishing detection endpoint
-    """
+    """Response model for single email phishing detection."""
+
     risk_level: str = Field(
         ...,
         description="Risk level: High, Medium, or Low",
-        example="High"
+        examples=["High"],
     )
     prediction: str = Field(
         ...,
         description="Prediction label",
-        example="Potential Phishing"
+        examples=["Potential Phishing"],
     )
     confidence: float = Field(
         ...,
         ge=0.0,
         le=1.0,
-        description="Model confidence score (0-1)",
-        example=0.92
+        description="Model confidence score between 0 and 1",
+        examples=[0.91],
     )
     explanation: str = Field(
         ...,
-        description="Human-readable explanation of the prediction",
-        example="Model identified suspicious URL patterns including domain mimicry"
+        description="Human-readable rationale for prediction",
+        examples=["Email uses urgent account-verification language and suspicious links."],
     )
-    
-    class Config:
-        schema_extra = {
+    model_used: str = Field(
+        ...,
+        description="Model or pipeline used to generate this result",
+        examples=["heuristic-email-v1"],
+    )
+    email_preview: str = Field(
+        ...,
+        description="Short sanitized preview of analyzed email text",
+        examples=["your mailbox is full verify your account now..."],
+    )
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "risk_level": "High",
                 "prediction": "Potential Phishing",
-                "confidence": 0.92,
-                "explanation": "Model identified suspicious URL patterns including domain mimicry and unusual TLD"
+                "confidence": 0.91,
+                "explanation": (
+                    "Detected urgent tone, credential-harvesting cues, and suspicious wording "
+                    "common in phishing campaigns."
+                ),
+                "model_used": "heuristic-email-v1",
+                "email_preview": "your mailbox storage is full. verify your account now...",
             }
         }
+    }
 
 
 class BatchDetectionResponse(BaseModel):
-    """
-    Response model for batch detection endpoint
-    TODO: Implement batch processing
-    """
+    """Response model for batch detection requests."""
+
     results: list[DetectionResponse]
     total_analyzed: int
     high_risk_count: int

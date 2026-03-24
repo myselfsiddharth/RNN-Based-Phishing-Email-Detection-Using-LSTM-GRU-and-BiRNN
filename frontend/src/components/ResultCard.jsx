@@ -2,6 +2,11 @@ import React from 'react';
 
 const ResultCard = ({ result }) => {
   if (!result) return null;
+  const confidencePct = Math.max(0, Math.min(100, Number(result.confidence || 0) * 100));
+  const modelTokens = String(result.model_used || '')
+    .split('-')
+    .filter(Boolean)
+    .slice(0, 6);
 
   const getRiskClass = (riskLevel) => {
     switch (riskLevel.toLowerCase()) {
@@ -19,11 +24,11 @@ const ResultCard = ({ result }) => {
   return (
     <div className="card result-card">
       <h2>Detection Result</h2>
-      
+
       <div className="result-content">
         <div className="result-item">
-          <span className="result-label">Analyzed URL:</span>
-          <span className="result-value url-value">{result.url}</span>
+          <span className="result-label">Model Used:</span>
+          <span className="result-value">{result.model_used || 'N/A'}</span>
         </div>
 
         <div className="result-item">
@@ -40,17 +45,35 @@ const ResultCard = ({ result }) => {
 
         <div className="result-item">
           <span className="result-label">Confidence:</span>
-          <span className="result-value">
-            {(result.confidence * 100).toFixed(1)}%
-          </span>
+          <span className="result-value">{confidencePct.toFixed(1)}%</span>
         </div>
+        <div className="confidence-meter" aria-label="confidence meter">
+          <div className="confidence-fill" style={{ width: `${confidencePct}%` }} />
+        </div>
+
+        <div className="result-item">
+          <span className="result-label">Email Preview:</span>
+          <span className="result-value url-value">{result.email_preview || 'N/A'}</span>
+        </div>
+
+        {modelTokens.length > 0 && (
+          <div className="model-token-row">
+            {modelTokens.map((token) => (
+              <span className="model-token" key={token}>
+                {token}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="result-explanation">
           <h3>Explainability</h3>
           <p>{result.explanation}</p>
-          <p className="placeholder-notice">
-            ⚠️ This is a placeholder result. Real ML model integration pending.
-          </p>
+          {String(result.model_used || '').toLowerCase().includes('heuristic') && (
+            <p className="placeholder-notice">
+              ⚠️ Backend is using heuristic fallback because trained artifacts are missing/unloadable.
+            </p>
+          )}
         </div>
       </div>
     </div>
